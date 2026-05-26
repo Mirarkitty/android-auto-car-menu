@@ -6,6 +6,9 @@ on:
     branches: [master, main]
   pull_request:
     branches: [master, main]
+  # Manual trigger from the Actions tab — useful when push events haven't
+  # auto-triggered (e.g. brand-new account before email verification).
+  workflow_dispatch:
 
 jobs:
   test:
