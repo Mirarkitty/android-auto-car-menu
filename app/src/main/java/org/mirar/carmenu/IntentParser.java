@@ -10,13 +10,29 @@ import androidx.car.app.CarContext;
  * Dispatch row-tap intents from the server.
  *
  * <p>Policy: pass-through. Anything the server returns is handed to
- * {@code carContext.startCarApp(intent)} as {@code ACTION_VIEW <uri>}. AA
- * itself is the gatekeeper — it accepts {@code geo:} (nav handoff), {@code
- * tel:} (dialer), and a small handful of others, and silently rejects the
- * rest. We don't second-guess AA's whitelist.
+ * {@code carContext.startCarApp(intent)}; AA is the gatekeeper and decides
+ * what actually launches.
  *
  * <p>One exception: the {@code carmenu:} scheme is reserved for internal
- * actions (refresh, back) that never leave the app.
+ * actions ({@code refresh}, {@code back}) that never leave the app.
+ *
+ * <h2>Intent action selection</h2>
+ *
+ * <p>AA's {@code startCarApp()} requires an AA-specific action constant
+ * paired with the URI scheme, NOT the standard Android intent action you'd
+ * use on the phone:
+ *
+ * <ul>
+ *   <li>{@code geo:} → {@link CarContext#ACTION_NAVIGATE}
+ *       ({@code "androidx.car.app.action.NAVIGATE"}). Using
+ *       {@code Intent.ACTION_VIEW} — which works for {@code geo:} on the
+ *       phone — fails inside AA with the opaque error
+ *       {@code "Remote startCarApp call failed"}.</li>
+ *   <li>{@code tel:} → {@link Intent#ACTION_DIAL}, not {@code ACTION_CALL}.</li>
+ *   <li>Anything else: best-effort {@code Intent.ACTION_VIEW}. AA almost
+ *       always rejects, but the server operator asked for it, so we
+ *       attempt the dispatch and log a warning if the host refuses.</li>
+ * </ul>
  *
  * <p>{@link #classify(String)} is the pure-Java half, unit-tested without
  * Android types. {@link #parseAndDispatch} is the Android-side wrapper.
