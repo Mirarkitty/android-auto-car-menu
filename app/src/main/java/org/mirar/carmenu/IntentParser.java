@@ -78,11 +78,28 @@ public final class IntentParser {
                 break;
             case PASSTHROUGH:
                 try {
-                    Intent intent = new Intent(Intent.ACTION_VIEW, Uri.parse(c.detail));
+                    Uri data = Uri.parse(c.detail);
+                    String scheme = data.getScheme();
+                    // AA's startCarApp() only accepts specific (action, scheme)
+                    // pairs.  Get the action wrong and the host returns
+                    // "Remote startCarApp call failed" — even for valid URIs.
+                    //
+                    //   geo:  → CarContext.ACTION_NAVIGATE (NOT Intent.ACTION_VIEW;
+                    //          AA defines its own constant for nav handoff)
+                    //   tel:  → Intent.ACTION_DIAL
+                    //   else  → ACTION_VIEW best-effort; AA will probably reject
+                    //          but the server operator asked for it, so try.
+                    String action;
+                    if ("geo".equals(scheme)) {
+                        action = CarContext.ACTION_NAVIGATE;
+                    } else if ("tel".equals(scheme)) {
+                        action = Intent.ACTION_DIAL;
+                    } else {
+                        action = Intent.ACTION_VIEW;
+                    }
+                    Intent intent = new Intent(action, data);
                     ctx.startCarApp(intent);
                 } catch (Throwable t) {
-                    // AA rejects intents it doesn't recognize (most non-geo/tel).
-                    // Log + swallow — the user just sees the row not respond.
                     Log.w(TAG, "AA rejected intent: " + uri + " — " + t.getMessage());
                 }
                 break;
