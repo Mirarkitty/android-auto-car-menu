@@ -102,7 +102,7 @@ Common top-level fields:
     title             string  Header text shown by AA.  May be empty.
     refresh_seconds   int     Client polls again after N seconds.
                               0 or absent = no auto-refresh.
-                              Values 1-4 are bumped to 5 (anti-loop).
+                              Values 1-2 are bumped to 3 (anti-loop floor).
                               Capped at 3600.
 
 

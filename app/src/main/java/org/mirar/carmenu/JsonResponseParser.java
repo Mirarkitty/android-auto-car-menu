@@ -107,10 +107,10 @@ public final class JsonResponseParser {
         return s.isEmpty() ? null : s;
     }
 
-    /** Per PROTOCOL.md: 0 = none; 1..4 → 5 (avoid runaway); else passthrough. */
+    /** Per PROTOCOL.txt: 0 = none; 1..2 → 3 (mild anti-loop floor); else passthrough. */
     static int clampRefresh(int v) {
         if (v <= 0) return 0;
-        if (v < 5) return 5;
+        if (v < 3) return 3;
         if (v > 3600) return 3600;
         return v;
     }

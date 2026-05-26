@@ -111,10 +111,13 @@ public class JsonResponseParserTest {
         JsonResponseParser.parse("not even {json");
     }
 
-    @Test public void refreshClamp_belowFiveBumpsToFive() {
+    @Test public void refreshClamp_belowThreeBumpsToThree() {
         assertEquals(0, JsonResponseParser.clampRefresh(0));
         assertEquals(0, JsonResponseParser.clampRefresh(-1));
-        assertEquals(5, JsonResponseParser.clampRefresh(1));
+        assertEquals(3, JsonResponseParser.clampRefresh(1));
+        assertEquals(3, JsonResponseParser.clampRefresh(2));
+        assertEquals(3, JsonResponseParser.clampRefresh(3));
+        assertEquals(5, JsonResponseParser.clampRefresh(5));
         assertEquals(60, JsonResponseParser.clampRefresh(60));
         assertEquals(3600, JsonResponseParser.clampRefresh(3600));
         assertEquals(3600, JsonResponseParser.clampRefresh(99999));
