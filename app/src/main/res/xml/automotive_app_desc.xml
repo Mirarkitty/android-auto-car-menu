@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    CAR.VALIDATOR requires this file referenced from AndroidManifest's
+    com.google.android.gms.car.application meta-data. "template" declares
+    the app uses the androidx.car.app template host (projected mode), not
+    a custom rendering surface.
+-->
+<automotiveApp>
+    <uses name="template" />
+</automotiveApp>

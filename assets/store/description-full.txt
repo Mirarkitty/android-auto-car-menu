@@ -1,0 +1,36 @@
+CarMenu is a minimal Android Auto companion that shows a list of shortcuts — destinations, places, and actions — defined by a server you own and run.
+
+HOW IT WORKS
+1. Configure a server URL in the app's phone-side settings.
+2. When you connect to Android Auto, CarMenu sends your current location to the server.
+3. The server returns a small JSON list of rows: titles, subtitles, icons, and a tap action (typically a navigation intent).
+4. Tap a row in Android Auto to launch navigation in Waze or Google Maps, or to dial a phone number.
+
+If location permission is denied, CarMenu still works — the server just gets told you haven't granted it, and can respond with whatever message it likes. Everything visible on the car screen comes from the server.
+
+DESIGNED FOR
+- Personal home-automation setups that already run a small server
+- A custom car menu of "home / work / charger / school pickup / favourite place" that you fully control
+- People who want simple, predictable Android Auto shortcuts without third-party clouds
+
+PRIVACY
+- The app sends only your current location, a device id (generated locally, user-editable), and a timestamp — to the HTTPS URL you configured.
+- Nothing else leaves the phone. No analytics. No crash reporters. No third-party SDKs.
+- The server is owned and operated by you. CarMenu does not phone home to any third party.
+
+PERMISSIONS
+- Location (precise): sent to your server so it can suggest relevant destinations. CarMenu only reads your location while it is in use on the car screen — never in the background.
+- Internet: to talk to your server.
+
+WHAT IT DOES NOT DO
+- CarMenu does not include navigation itself. It hands off to Waze or Google Maps via standard Android intents.
+- It does not run a background service. It does not scan Bluetooth. It does not access contacts, the microphone, photos, or any other private data.
+
+OPEN PROTOCOL
+The HTTP / JSON protocol between CarMenu and your server is documented and stable. If you can serve JSON over HTTPS, you can drive CarMenu.
+
+Full protocol spec (also bundled inside the app and viewable / saveable from the phone-side settings screen):
+https://mirarkitty.github.io/android-auto-car-menu/protocol.txt
+
+SUPPORT
+This is an individual developer project. For questions or issues, contact the developer via the email or repository link on the Play Store listing.

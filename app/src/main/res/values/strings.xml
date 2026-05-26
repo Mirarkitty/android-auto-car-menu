@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">CarMenu</string>
+    <string name="settings_title">CarMenu settings</string>
+    <string name="server_url_label">Server URL</string>
+    <string name="server_url_hint">https://your.server/aa-screen</string>
+    <string name="device_id_label">Device ID</string>
+    <string name="save">Save</string>
+    <string name="welcome">Connect to Android Auto to see the menu.</string>
+</resources>

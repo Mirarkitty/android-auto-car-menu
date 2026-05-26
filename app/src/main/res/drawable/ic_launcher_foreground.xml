@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Adaptive-icon foreground: 8-point compass rose with cardinal/inter-
+     cardinal alternation. Stays inside the 72×72 safe zone centered on
+     (54,54) so it survives any system mask (circle/squircle/teardrop).
+
+     Two-tone fill (light + shadow halves on each point) gives the rose
+     dimensional depth at small sizes without raising the polygon count
+     too far. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+
+    <!-- Outer thin compass ring. r=36 from center (54,54). Two concentric
+         paths form a ring via even-odd implied by separate stroke. -->
+    <path
+        android:strokeColor="#E8D9A8"
+        android:strokeWidth="1.2"
+        android:fillColor="#00000000"
+        android:pathData="M54,18 A36,36 0 1,1 53.99,18 Z" />
+
+    <!-- Compass rose — LIGHT halves (right side of each point, lit from
+         the upper-right). Vertices alternate outer/inner, traversing
+         clockwise from north. -->
+    <path
+        android:fillColor="#F4E4BC"
+        android:pathData="
+            M54,18  L58,45  L54,54  Z
+            M71,37  L63,50  L54,54  Z
+            M90,54  L63,58  L54,54  Z
+            M71,71  L58,63  L54,54  Z
+            M54,90  L50,63  L54,54  Z
+            M37,71  L45,58  L54,54  Z
+            M18,54  L45,50  L54,54  Z
+            M37,37  L50,45  L54,54  Z" />
+
+    <!-- Compass rose — SHADOW halves (the opposite side of each point). -->
+    <path
+        android:fillColor="#B8A266"
+        android:pathData="
+            M54,18  L50,45  L54,54  Z
+            M71,37  L58,45  L54,54  Z
+            M90,54  L63,50  L54,54  Z
+            M71,71  L63,58  L54,54  Z
+            M54,90  L58,63  L54,54  Z
+            M37,71  L50,63  L54,54  Z
+            M18,54  L45,58  L54,54  Z
+            M37,37  L45,50  L54,54  Z" />
+
+    <!-- Tiny center pip + N marker accent (small triangle at the very tip
+         of north, in a brighter highlight color — anchors the eye and
+         signals "this end is north"). -->
+    <path
+        android:fillColor="#0E2538"
+        android:pathData="M54,49 m-3,0 a3,3 0,1,0 6,0 a3,3 0,1,0 -6,0 Z" />
+    <path
+        android:fillColor="#E8D9A8"
+        android:pathData="M54,17 L57,23 L51,23 Z" />
+</vector>

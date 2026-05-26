@@ -1,0 +1,36 @@
+# ── Android Studio / Gradle ────────────────────────────────────────────
+*.iml
+.gradle/
+/local.properties
+/.idea/
+.DS_Store
+/build/
+/captures/
+.externalNativeBuild/
+.cxx/
+app/build/
+
+# ── Secrets ────────────────────────────────────────────────────────────
+# Keystore is gitignored at the project level. Use keystore.properties.example
+# as a template. The actual keystore.jks + keystore.properties stay local.
+keystore.jks
+keystore.properties
+*.jks
+*.p12
+*.keystore
+
+# ── Python (server-example/python/) ────────────────────────────────────
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# ── Editor / OS noise ──────────────────────────────────────────────────
+*.swp
+*.swo
+*~
+.vscode/
+
+# ── Test output ────────────────────────────────────────────────────────
+app/build/test-results/
+app/build/reports/

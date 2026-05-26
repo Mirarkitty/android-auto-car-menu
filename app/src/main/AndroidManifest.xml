@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+
+    <!--
+        Minimal permission surface — that's the whole pitch of this app.
+        ACCESS_FINE_LOCATION: sent to the user-configured server.
+        INTERNET: talking to said server.
+
+        NO foreground service, NO bluetooth, NO background location, NO
+        sensors, NO notification listener, NO boot receiver. Adding any of
+        these without good reason undoes the whole "easy Play review" win.
+    -->
+    <uses-permission android:name="android.permission.INTERNET" />
+    <uses-permission android:name="android.permission.ACCESS_FINE_LOCATION" />
+    <!-- Hint to Play that this app targets Auto. Doesn't affect runtime; just
+         a Store listing signal. -->
+    <uses-feature android:name="android.hardware.type.automotive"
+        android:required="false" />
+
+    <application
+        android:allowBackup="true"
+        android:icon="@mipmap/ic_launcher"
+        android:label="@string/app_name"
+        android:roundIcon="@mipmap/ic_launcher_round"
+        android:supportsRtl="true"
+        android:theme="@style/Theme.Material3.DayNight"
+        tools:targetApi="33"
+        xmlns:tools="http://schemas.android.com/tools">
+
+        <!--
+            Phone-side settings UI. User enters their server URL here. Trivially
+            small — one EditText + one Save button. See MainActivity.java.
+        -->
+        <activity
+            android:name=".MainActivity"
+            android:exported="true"
+            android:label="@string/app_name">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+                <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+        </activity>
+
+        <!--
+            Bundled protocol-spec viewer. Reached from a link in MainActivity;
+            not exported because there's no reason for other apps to launch it.
+        -->
+        <activity
+            android:name=".ProtocolActivity"
+            android:exported="false"
+            android:label="@string/app_name" />
+
+        <!--
+            The Android Auto entry point. AA host invokes this when the user
+            taps the app's row in the AA app drawer.
+
+            Category: CHARGING — projected (in-car), shows in AA app list.
+            IOT is AAOS-only (not for projection); the others (navigation,
+            POI, parking, etc.) come with extra review burdens. CHARGING is
+            the easiest projection-friendly category for a personal
+            shortcut app.
+
+            CHARGING is the most permissive projection category that
+            doesn't carry extra Play review burdens (NAV, POI, PARKING
+            require sensitive-permission justifications). IOT is
+            AAOS-only and invisible in projected AA.
+        -->
+        <service
+            android:name=".MyCarAppService"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="androidx.car.app.CarAppService" />
+                <category android:name="androidx.car.app.category.CHARGING" />
+            </intent-filter>
+        </service>
+
+        <!--
+            Required by CAR.VALIDATOR. Without this, AA refuses the app with
+            "Package DENIED; Uses for TEMPLATE not defined". The XML file is
+            tiny (see res/xml/automotive_app_desc.xml).
+        -->
+        <meta-data
+            android:name="com.google.android.gms.car.application"
+            android:resource="@xml/automotive_app_desc" />
+
+        <!--
+            Required by androidx.car.app: declares the minimum Car App API
+            level this app uses. Level 1 covers ListTemplate / PaneTemplate /
+            MessageTemplate — everything CarMenu needs.
+        -->
+        <meta-data
+            android:name="androidx.car.app.minCarApiLevel"
+            android:value="1" />
+
+    </application>
+</manifest>

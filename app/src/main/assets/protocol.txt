@@ -1,0 +1,369 @@
+CarMenu  HTTP/JSON Protocol Specification
+==========================================
+Plain-ASCII reference for server authors.  Wraps at 78 columns.
+Authoritative source: see in-app "Server protocol" link or
+https://mirarkitty.github.io/android-auto-car-menu/protocol.txt
+
+
+1.  OVERVIEW
+------------
+
+CarMenu is a thin Android Auto viewer.  All UI content - row titles,
+icons, the header text, the navigation targets - comes from a single
+HTTPS endpoint the user configures in the phone-side settings.  The
+app sends location + permission state, the server replies with one of
+three template shapes, the app renders it.  Row taps fire intents that
+Android Auto dispatches (geo: -> Waze/Maps, tel: -> dialer, etc.).
+
+
+2.  ENDPOINT
+------------
+
+The user enters one URL in the app's settings, e.g.
+
+    https://your-server.example/aa-screen
+
+CarMenu sends a POST to that exact URL on every request.  No other
+paths.  No query parameters added by the client.
+
+
+3.  REQUEST
+-----------
+
+Method:        POST
+Content-Type:  application/json; charset=utf-8
+User-Agent:    CarMenu/<versionName> (vc=<versionCode>)
+Body:          JSON object (see below)
+Timeouts:      5s connect, 10s read
+
+Body fields:
+
+    device_id            string   Persistent id assigned at first
+                                  launch ("carmenu.<8 hex>").
+                                  User-editable.  Always sent.
+
+    lat                  float    Current best location, omitted
+    lon                  float    when no fix at all.
+
+    location_age_ms      int      Age (ms) of the fix at request time.
+                                  Only present when lat/lon are.
+
+    location_fresh       bool     true if age < 5 min.  Hint - server
+                                  may expect a "location"-trigger
+                                  re-POST shortly if false.
+
+    location_permission  string   "granted" | "denied" | "unknown"
+
+    ts                   int      Client clock, ms since epoch.
+
+    trigger              string   "initial" | "refresh" | "back" |
+                                  "location"
+
+    app_version          int      Build versionCode.  Server can
+                                  branch on this for protocol
+                                  evolution.
+
+Example:
+
+    {
+      "device_id":           "carmenu.example1",
+      "lat":                 52.5200,
+      "lon":                 13.4050,
+      "location_age_ms":     500,
+      "location_fresh":      true,
+      "location_permission": "granted",
+      "ts":                  1779441234567,
+      "trigger":             "initial",
+      "app_version":         5
+    }
+
+
+4.  RESPONSE
+------------
+
+Status:        2xx with JSON body, anything else -> client renders
+               a built-in "Server error" message.
+Content-Type:  application/json
+Body:          one of three template shapes.
+
+Common top-level fields:
+
+    template          string  "list" | "pane" | "message" (required)
+    title             string  Header text shown by AA.  May be empty.
+    refresh_seconds   int     Client polls again after N seconds.
+                              0 or absent = no auto-refresh.
+                              Values 1-4 are bumped to 5 (anti-loop).
+                              Capped at 3600.
+
+
+4.1  template = "list"
+----------------------
+
+Vertical list of rows.  AA caps the list at 6 rows.
+
+    {
+      "template":         "list",
+      "title":            "Where to?",
+      "rows":             [ <row>, ... ],
+      "refresh_seconds":  120
+    }
+
+Row shape (used by "list" and as actions in "pane"):
+
+    title        string  Required.  Primary text.
+    subtitle     string  Optional.  Secondary text.
+    icon         string  Optional.  Built-in icon slug (sec 5.1).
+    icon_url     string  Optional.  Remote bitmap (sec 5.2).
+                         Same-origin only.  Wins over "icon".
+    tint         string  Optional.  Color for the icon (sec 5.3).
+    tap          object  Optional.  Action on tap.  If absent the
+                         row is informational only.
+                         { "intent": "<uri>" }  -  see sec 6.
+
+
+4.2  template = "pane"
+----------------------
+
+Detail screen with up to 4 rows + up to 2 action buttons.
+
+    {
+      "template":  "pane",
+      "title":     "EV9",
+      "rows":      [ <row>, ... ],       up to 4
+      "actions":   [ <action>, ... ],    up to 2
+      "image_url": "/graphs/ev9.png",    optional, same-origin
+      "refresh_seconds": 30
+    }
+
+Actions use the same shape as rows.  Their "icon" / "icon_url" /
+"tint" / "tap" fields work the same way.
+
+(image_url is parsed by the client but not yet rendered in v1.
+ Send it - the server contract is stable; rendering will land in a
+ later app version.)
+
+
+4.3  template = "message"
+-------------------------
+
+Single full-screen message.  Useful for "no GPS yet", "permission
+denied", error states, or any non-list content.
+
+    {
+      "template":  "message",
+      "title":     "Location off",
+      "subtitle":  "Grant CarMenu location access on the phone to ...",
+      "icon":      "generic",
+      "tint":      "yellow",
+      "refresh_seconds": 30
+    }
+
+The client adds a one-button action strip that re-POSTs with
+trigger="refresh" so users aren't stranded.
+
+
+5.  ICONS
+---------
+
+5.1  Built-in slugs
+-------------------
+
+Always available without a network round-trip.  Initial set:
+
+    home      work      lunch     grocery
+    charging  parking   fuel      fav
+    school    friends   mall      shop
+    generic   spinner   refresh   back
+
+Unknown slugs fall back to the "generic" compass icon.  Send a slug
+the client doesn't know and the user sees the fallback - safe to use
+new slugs on old clients.
+
+5.2  Remote icons (icon_url)
+----------------------------
+
+A URL on the same origin as the configured server, e.g.
+
+    "icon_url": "/icons/charger.png"             relative (preferred)
+    "icon_url": "https://your-server.example/icons/charger.png"
+
+Same-origin rules (enforced client-side):
+
+    - scheme exact match (http/https)
+    - host exact match (case-insensitive)
+    - port exact match (default ports normalised)
+    - relative URLs MUST begin with "/"
+    - schemeless relatives ("icons/x.png") are rejected
+
+Cross-origin URLs are silently dropped and the client falls back to
+the "icon" slug if one was also set.  This is the security boundary:
+a compromised server cannot make the phone fetch icons from third
+parties (which would leak the user's IP + timing).
+
+Cache: LRU 32 entries, in-process only.  Bitmaps are decoded to a
+maximum of 256x256.  Bodies larger than 512 KB are rejected.  While
+a remote icon is downloading the row shows the "generic" placeholder;
+the screen re-renders when the bitmap lands.
+
+5.3  Tints
+----------
+
+Optional color applied to whichever icon the row renders.
+
+Named values (mapped to AA's CarColor system):
+
+    default   primary    secondary
+    red       green      blue        yellow
+
+Custom hex:
+
+    "#RRGGBB"        opaque
+    "#AARRGGBB"      with alpha
+
+Tint applies cleanly to built-in slugs (single-color white glyphs).
+On multi-color remote bitmaps the tint may produce odd results -
+either supply the bitmap in white-on-transparent for tinting, or
+send the bitmap already colored and omit the tint.
+
+Caveat: Android Auto's host design system may override low-contrast
+custom hex colors with a default color for accessibility.  Named
+colors tend to render more reliably across day/night themes.
+
+
+6.  INTENTS (row.tap.intent)
+----------------------------
+
+The string in tap.intent is handed to Android Auto's startCarApp()
+verbatim, wrapped in ACTION_VIEW.  AA is the gatekeeper - it accepts
+a small set of schemes and silently rejects the rest.  CarMenu does
+not filter the URI: the server operator is trusted to send something
+AA accepts.
+
+Two schemes are intercepted by CarMenu before AA sees them:
+
+    carmenu:refresh    Re-POST /aa-screen with trigger=refresh
+    carmenu:back       Pop the current screen
+
+Schemes AA currently accepts (subject to AA host version):
+
+    geo:lat,lon[?q=...]              Navigation handoff (Waze, Maps)
+    geo:0,0?q=encoded+address        Same, text-search form
+    tel:+E164                        Open the AA dialer
+
+Anything else is sent to AA, AA shrugs, the row tap becomes a no-op.
+
+
+7.  LOCATION LIFECYCLE
+----------------------
+
+CarMenu does not run a background service.  Location is read only
+while the AA screen is visible.  Three cases:
+
+  (a) Permission denied
+      One POST with location_permission="denied", no lat/lon.
+      Server should respond with a "message" template explaining how
+      to grant access.  No further location work happens on the phone.
+
+  (b) Cold start (granted, no fresh fix yet)
+      First POST carries the last-known fix (possibly hours old,
+      location_fresh=false), or no fix at all if the OS has none.
+      The phone then subscribes to the fused location provider at
+      5-second high-accuracy intervals.  On the first fresh fix the
+      client re-POSTs with trigger="location".  Subsequent fixes
+      re-POST only when the device has moved >= 100 m from the last
+      sent location, throttled to one re-POST every 8 s.
+
+  (c) Easy case (granted, fresh last-known)
+      First POST has a usable fix.  The provider's confirming update
+      typically arrives within the re-POST throttle and is suppressed.
+
+In all cases, onStop tears down the location subscription, cancels
+any pending refresh poll, and drops in-flight POST callbacks.
+
+
+8.  ERROR HANDLING
+------------------
+
+Non-2xx response, network timeout, or unparseable body all produce a
+client-rendered "Server error" / "Network error" message template.
+The action strip on that message lets the user retry by re-POSTing
+with trigger="refresh".  No auto-retry from the client.
+
+
+9.  AUTHENTICATION
+------------------
+
+v1: none.  Treat the server URL as the secret (the user enters it
+once in phone-side settings).
+
+v2 (future, if needed): server-configured bearer token in an Auth
+header, also entered once in settings.
+
+
+10.  VERSIONING
+---------------
+
+app_version in the request is the running build's versionCode.  The
+server can branch on it to serve different shapes to newer/older
+clients.  Strategy:
+
+    - New optional fields are added freely; old clients ignore them.
+    - New "template" values are introduced under the same template
+      field; old clients that don't recognise one fall back to a
+      "message" template with "Unsupported screen - update CarMenu".
+    - Breaking changes bump the meaning of app_version in lockstep
+      with a new app release.
+
+
+11.  EXAMPLE SERVER RESPONSE
+----------------------------
+
+A complete reply mixing built-in slugs, remote icons, and tints.
+Coordinates are roughly central Berlin - replace with whatever your
+own server returns:
+
+    {
+      "template": "list",
+      "title":    "Pick a spot",
+      "rows": [
+        { "title":    "Cafe Aroma",
+          "subtitle": "Old town square",
+          "icon":     "lunch",
+          "tint":     "red",
+          "tap": { "intent": "geo:52.5163,13.3777?q=52.5163,13.3777" } },
+
+        { "title":    "Public library",
+          "subtitle": "Main branch",
+          "icon":     "school",
+          "tint":     "#3399FF",
+          "tap": { "intent": "geo:52.5191,13.4014?q=52.5191,13.4014" } },
+
+        { "title":    "Fast charger",
+          "subtitle": "Highway rest stop",
+          "icon_url": "/icons/charger.png",
+          "tap": { "intent": "geo:52.4862,13.4275?q=52.4862,13.4275" } },
+
+        { "title":    "Call dentist",
+          "icon":     "fav",
+          "tap": { "intent": "tel:+15550100123" } },
+
+        { "title":    "Refresh",
+          "icon":     "refresh",
+          "tint":     "yellow",
+          "tap": { "intent": "carmenu:refresh" } }
+      ],
+      "refresh_seconds": 120
+    }
+
+
+12.  REFERENCE SERVER
+---------------------
+
+A reference Python/Flask implementation ships in the project source
+tree.  Browse it at:
+
+    https://github.com/Mirarkitty/android-auto-car-menu
+        /tree/master/server-example/python
+
+
+- end of spec -
