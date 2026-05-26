@@ -56,8 +56,18 @@ Body fields:
 
     ts                   int      Client clock, ms since epoch.
 
-    trigger              string   "initial" | "refresh" | "back" |
-                                  "location"
+    trigger              string   "initial" (screen start)
+                                | "refresh" (timer or carmenu:refresh tap)
+                                | "back" (returning from a child screen)
+                                | "location" (new fresh fix arrived, or
+                                              moved >= 100m since last)
+                                | "action" (carmenu:do?id=... tap - see
+                                            section 7)
+
+    action_id            string   Present only when trigger="action".
+                                  The opaque id from carmenu:do?id=<id>;
+                                  server branches on this to decide
+                                  what to do.
 
     app_version          int      Build versionCode.  Server can
                                   branch on this for protocol
@@ -233,27 +243,116 @@ colors tend to render more reliably across day/night themes.
 6.  INTENTS (row.tap.intent)
 ----------------------------
 
-The string in tap.intent is handed to Android Auto's startCarApp()
-verbatim, wrapped in ACTION_VIEW.  AA is the gatekeeper - it accepts
-a small set of schemes and silently rejects the rest.  CarMenu does
-not filter the URI: the server operator is trusted to send something
-AA accepts.
+CarMenu maps tap.intent URIs to one of three destinations:
 
-Two schemes are intercepted by CarMenu before AA sees them:
+  (i)  carmenu:* schemes are intercepted in-app, never reach AA.
+  (ii) Recognised non-carmenu schemes are dispatched to AA's
+       startCarApp() with the AA-specific action constant for that
+       scheme.  Get the action wrong - e.g. ACTION_VIEW + geo: - and
+       AA returns the opaque "Remote startCarApp call failed".
+  (iii)Everything else is best-effort dispatched as ACTION_VIEW;
+       AA almost always rejects.
 
-    carmenu:refresh    Re-POST /aa-screen with trigger=refresh
-    carmenu:back       Pop the current screen
+In-app (carmenu:) schemes:
 
-Schemes AA currently accepts (subject to AA host version):
+    carmenu:refresh        Re-POST /aa-screen with trigger=refresh.
+                           Equivalent to a manual pull-to-refresh.
 
-    geo:lat,lon[?q=...]              Navigation handoff (Waze, Maps)
-    geo:0,0?q=encoded+address        Same, text-search form
-    tel:+E164                        Open the AA dialer
+    carmenu:back           Pop the current screen.
+
+    carmenu:do?id=<id>     Server-side action dispatch.  Client POSTs
+                           to /aa-screen with trigger="action" and
+                           action_id=<id> in the body (the lat/lon
+                           and other normal fields too).  Server does
+                           whatever it likes server-side (toggle a
+                           switch, send a message, queue a job, ...)
+                           and returns a normal template - typically
+                           a message confirming the action.  See
+                           section 7 for the action lifecycle.
+
+AA-recognised schemes (subject to AA host version):
+
+    URI scheme              AA action used      Result
+    geo:lat,lon[?q=...]     CarContext.         Navigation handoff
+    geo:0,0?q=address       ACTION_NAVIGATE     to Waze, Maps, etc.
+    tel:+E164               Intent.ACTION_DIAL  Open the AA dialer.
 
 Anything else is sent to AA, AA shrugs, the row tap becomes a no-op.
 
 
-7.  LOCATION LIFECYCLE
+7.  SERVER-SIDE ACTIONS (carmenu:do?id=...)
+-------------------------------------------
+
+A row whose tap.intent is "carmenu:do?id=<action-id>" turns into a
+plain POST back to the same /aa-screen endpoint, carrying:
+
+    trigger:    "action"
+    action_id:  <action-id>             (URL-decoded)
+    lat, lon, location_permission, ts, app_version  - as usual
+
+The server can do anything in its handler - call out to a home-
+automation API, send a message, queue a database write - and then
+respond with a normal template.  Typical pattern: respond with a
+"message" template confirming the action, plus refresh_seconds set so
+the screen rolls back to the menu shortly.
+
+Concrete example: a garage-door toggle.
+
+  Step 1: server returns a row in the menu list
+
+      {
+        "title":    "Open garage",
+        "subtitle": "Tap to toggle",
+        "icon":     "fav",
+        "tint":     "green",
+        "tap": { "intent": "carmenu:do?id=garage-toggle" }
+      }
+
+  Step 2: user taps; client POSTs
+
+      {
+        "device_id":           "carmenu.example1",
+        "lat": 52.5200, "lon": 13.4050,
+        "location_permission": "granted",
+        "trigger":             "action",
+        "action_id":           "garage-toggle",
+        "ts":                  1779441234567,
+        "app_version":         9
+      }
+
+  Step 3: server-side handler
+
+      if (action_id == "garage-toggle"):
+          # Hit your home-automation endpoint.  Anything you can curl
+          # from the server, you can wire here.
+          home_automation.post("/garage/toggle")
+          return {
+              "template": "message",
+              "title":    "Garage",
+              "subtitle": "Door toggle sent.",
+              "icon":     "fav",
+              "tint":     "green",
+              "refresh_seconds": 10    # roll back to the menu after 10s
+          }
+
+This is the leverage point of the architecture: row taps don't have
+to be Android intents.  Any URL your server can hit becomes a button
+in the car.  Garage doors, smart lights, scene activations, "send my
+ETA to <person>", "queue grocery list", whatever.
+
+The action_id is opaque to the client - no validation, no parsing,
+no length limit.  Pick names that read well in your server code.
+Convention: lowercase-hyphenated, namespaced if you have many
+("garage-toggle", "lights-livingroom-on", "ev-precondition").
+
+Side data in the URI: the action_id is whatever appears after id=
+in the query string (URL-decoded).  If you need extra parameters,
+encode them into the id ("garage-toggle?room=main" rendered as
+"id=garage-toggle%3Froom%3Dmain") or just use multiple distinct
+action_ids.
+
+
+8.  LOCATION LIFECYCLE
 ----------------------
 
 CarMenu does not run a background service.  Location is read only
@@ -281,7 +380,7 @@ In all cases, onStop tears down the location subscription, cancels
 any pending refresh poll, and drops in-flight POST callbacks.
 
 
-8.  ERROR HANDLING
+9.  ERROR HANDLING
 ------------------
 
 Non-2xx response, network timeout, or unparseable body all produce a
@@ -290,7 +389,7 @@ The action strip on that message lets the user retry by re-POSTing
 with trigger="refresh".  No auto-retry from the client.
 
 
-9.  AUTHENTICATION
+10.  AUTHENTICATION
 ------------------
 
 v1: none.  Treat the server URL as the secret (the user enters it
@@ -300,7 +399,7 @@ v2 (future, if needed): server-configured bearer token in an Auth
 header, also entered once in settings.
 
 
-10.  VERSIONING
+11.  VERSIONING
 ---------------
 
 app_version in the request is the running build's versionCode.  The
@@ -315,7 +414,7 @@ clients.  Strategy:
       with a new app release.
 
 
-11.  EXAMPLE SERVER RESPONSE
+12.  EXAMPLE SERVER RESPONSE
 ----------------------------
 
 A complete reply mixing built-in slugs, remote icons, and tints.
@@ -356,7 +455,7 @@ own server returns:
     }
 
 
-12.  REFERENCE SERVER
+13.  REFERENCE SERVER
 ---------------------
 
 A reference Python/Flask implementation ships in the project source

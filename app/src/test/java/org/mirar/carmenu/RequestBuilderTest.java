@@ -88,4 +88,34 @@ public class RequestBuilderTest {
                 RequestBuilder.Permission.GRANTED, "location", 1));
         assertEquals("location", o.getString("trigger"));
     }
+
+    @Test public void actionId_includedWhenSet() throws JSONException {
+        JSONObject o = new JSONObject(RequestBuilder.build("d",
+                52.52, 13.40, 1L, 2L,
+                RequestBuilder.Permission.GRANTED,
+                "action", "garage-toggle", 1));
+        assertEquals("action", o.getString("trigger"));
+        assertEquals("garage-toggle", o.getString("action_id"));
+    }
+
+    @Test public void actionId_omittedWhenNullOrEmpty() throws JSONException {
+        JSONObject nullId = new JSONObject(RequestBuilder.build("d",
+                null, null, null, 0L,
+                RequestBuilder.Permission.GRANTED, "initial", null, 1));
+        assertFalse(nullId.has("action_id"));
+
+        JSONObject emptyId = new JSONObject(RequestBuilder.build("d",
+                null, null, null, 0L,
+                RequestBuilder.Permission.GRANTED, "initial", "", 1));
+        assertFalse(emptyId.has("action_id"));
+    }
+
+    @Test public void oldOverloadStillWorks() throws JSONException {
+        // Backwards compat: the original 8-arg signature should still
+        // produce a valid body, never emits action_id.
+        JSONObject o = new JSONObject(RequestBuilder.build("d",
+                52.52, 13.40, 1L, 2L,
+                RequestBuilder.Permission.GRANTED, "initial", 1));
+        assertFalse(o.has("action_id"));
+    }
 }

@@ -47,9 +47,12 @@ to (52.52, 13.40).
 
 ## Customising
 
-Edit the `PLACES` list at the top of `carmenu_server.py`. Each entry
-is a row in the AA list — title, subtitle, an optional icon
-(slug or URL), an optional tint, and a coordinate.
+Two extension points:
+
+**Destinations.** Edit the `PLACES` list at the top of
+`carmenu_server.py`. Each entry is a row in the AA list — title,
+subtitle, an optional icon (slug or URL), an optional tint, and a
+coordinate.
 
 For a richer setup, replace `PLACES` with anything you like:
 - Read from a database of saved spots
@@ -57,6 +60,17 @@ For a richer setup, replace `PLACES` with anything you like:
   request time
 - Make the response depend on time of day, day of week, or last-known
   fix location
+
+**Server-side actions** (`carmenu:do?id=...`). Edit the `ACTIONS` dict.
+Each key is an opaque `action_id` string; the value is a function that
+receives the parsed request (lat/lon, device_id, etc.) and returns a
+template dict. This is where a row tap turns into "open the garage",
+"send my ETA to <person>", "activate scene X" — anything your server
+can do, you can map to a button.
+
+The bundled example has `garage-toggle` (logs + returns a confirmation
+message; uncomment the `requests.post(...)` to wire it to your home
+automation) and `lights-home-on` as templates to copy.
 
 The protocol is documented in full at
 `https://mirarkitty.github.io/android-auto-car-menu/protocol.txt` (also bundled inside the

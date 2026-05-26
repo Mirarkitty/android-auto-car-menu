@@ -81,6 +81,9 @@ public class MainScreen extends Screen implements DefaultLifecycleObserver {
                 new IntentParser.InternalHandler() {
                     @Override public void onRefresh() { refresh(); }
                     @Override public void onBack()    { getScreenManager().pop(); }
+                    @Override public void onAction(String actionId) {
+                        sendAction(actionId);
+                    }
                 },
                 () -> { if (alive) invalidate(); });
         this.fused = LocationServices.getFusedLocationProviderClient(carContext);
@@ -149,14 +152,29 @@ public class MainScreen extends Screen implements DefaultLifecycleObserver {
         fetch(loc, p, "refresh");
     }
 
+    /** carmenu:do?id=<actionId> dispatched from a row tap. */
+    private void sendAction(String actionId) {
+        if (!alive || actionId == null || actionId.isEmpty()) return;
+        RequestBuilder.Permission p = hasLocationPermission()
+                ? RequestBuilder.Permission.GRANTED
+                : RequestBuilder.Permission.DENIED;
+        Location loc = p == RequestBuilder.Permission.GRANTED ? lastKnownLocation() : null;
+        fetch(loc, p, "action", actionId);
+    }
+
     private void fetch(Location loc, RequestBuilder.Permission perm, String trigger) {
+        fetch(loc, perm, trigger, null);
+    }
+
+    private void fetch(Location loc, RequestBuilder.Permission perm, String trigger,
+                       String actionId) {
         if (!alive || fetching) return;
         fetching = true;
         if (loc != null) {
             lastSentLocation = loc;
             lastSentAtMs = System.currentTimeMillis();
         }
-        fetcher.fetchScreen(loc, perm, trigger, response -> {
+        fetcher.fetchScreen(loc, perm, trigger, actionId, response -> {
             fetching = false;
             if (!alive) return;
             current = response;

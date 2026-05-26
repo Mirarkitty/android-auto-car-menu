@@ -43,13 +43,19 @@ public final class IntentParser {
     public enum Kind {
         INTERNAL_REFRESH,
         INTERNAL_BACK,
-        PASSTHROUGH,    // hand to startCarApp(); AA decides
-        EMPTY           // null / no scheme — nothing to do
+        INTERNAL_ACTION,   // carmenu:do?id=<id> — server-side action
+        PASSTHROUGH,       // hand to startCarApp(); AA decides
+        EMPTY              // null / no scheme — nothing to do
     }
 
     public static final class Classification {
         public final Kind kind;
-        public final String detail;   // for INTERNAL_*: null. For PASSTHROUGH: the uri.
+        /**
+         * INTERNAL_ACTION → the action id (the {@code id=...} query value).
+         * PASSTHROUGH → the full URI to dispatch.
+         * INTERNAL_REFRESH/BACK/EMPTY → null.
+         */
+        public final String detail;
         public Classification(Kind kind, String detail) {
             this.kind = kind; this.detail = detail;
         }
@@ -70,6 +76,18 @@ public final class IntentParser {
             String rest = uri.substring(colon + 1);
             if ("refresh".equals(rest)) return new Classification(Kind.INTERNAL_REFRESH, null);
             if ("back".equals(rest))    return new Classification(Kind.INTERNAL_BACK, null);
+            // carmenu:do?id=<action-id>  — server-side action dispatch.
+            // The client re-POSTs to /aa-screen with trigger="action" and
+            // action_id=<id>, and the server does whatever it wants
+            // server-side (send a message, toggle a switch, ...) and returns
+            // a normal template (often a "done" confirmation).
+            if (rest.startsWith("do?")) {
+                String query = rest.substring(3);
+                String id = queryParam(query, "id");
+                if (id != null && !id.isEmpty()) {
+                    return new Classification(Kind.INTERNAL_ACTION, id);
+                }
+            }
             // Unknown carmenu: action — treat as no-op rather than passing
             // through; the scheme is reserved for us.
             return new Classification(Kind.EMPTY, null);
@@ -80,6 +98,47 @@ public final class IntentParser {
     public interface InternalHandler {
         void onRefresh();
         void onBack();
+        /** {@code carmenu:do?id=<id>} — server-side action with this id. */
+        void onAction(String actionId);
+    }
+
+    /**
+     * Pull a value from a {@code key1=v1&key2=v2} query string. Returns null
+     * if the key isn't present. URL-decodes the value (replaces '+' with space
+     * and unescapes %XX). Pure Java for unit-testability.
+     */
+    static String queryParam(String query, String key) {
+        if (query == null) return null;
+        String prefix = key + "=";
+        for (String pair : query.split("&")) {
+            if (pair.startsWith(prefix)) {
+                return urlDecode(pair.substring(prefix.length()));
+            }
+        }
+        return null;
+    }
+
+    private static String urlDecode(String s) {
+        StringBuilder out = new StringBuilder(s.length());
+        for (int i = 0; i < s.length(); i++) {
+            char c = s.charAt(i);
+            if (c == '+') {
+                out.append(' ');
+            } else if (c == '%' && i + 2 < s.length()) {
+                try {
+                    int hi = Character.digit(s.charAt(i + 1), 16);
+                    int lo = Character.digit(s.charAt(i + 2), 16);
+                    if (hi < 0 || lo < 0) { out.append(c); continue; }
+                    out.append((char) ((hi << 4) | lo));
+                    i += 2;
+                } catch (Throwable t) {
+                    out.append(c);
+                }
+            } else {
+                out.append(c);
+            }
+        }
+        return out.toString();
     }
 
     public static void parseAndDispatch(CarContext ctx, String uri,
@@ -91,6 +150,9 @@ public final class IntentParser {
                 break;
             case INTERNAL_BACK:
                 if (internal != null) internal.onBack();
+                break;
+            case INTERNAL_ACTION:
+                if (internal != null) internal.onAction(c.detail);
                 break;
             case PASSTHROUGH:
                 try {

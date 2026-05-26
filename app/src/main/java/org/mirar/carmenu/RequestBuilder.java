@@ -31,6 +31,20 @@ public final class RequestBuilder {
                                 Long locationTimeMs, long nowMs,
                                 Permission permission,
                                 String trigger, int appVer) {
+        return build(deviceId, lat, lon, locationTimeMs, nowMs,
+                permission, trigger, null, appVer);
+    }
+
+    /**
+     * @param actionId non-null when {@code trigger="action"} (a
+     *                 {@code carmenu:do?id=...} tap-back); identifies the
+     *                 server-side action to perform. Null for all other
+     *                 triggers.
+     */
+    public static String build(String deviceId, Double lat, Double lon,
+                                Long locationTimeMs, long nowMs,
+                                Permission permission,
+                                String trigger, String actionId, int appVer) {
         JSONObject o = new JSONObject();
         try {
             o.put("device_id", deviceId == null ? "" : deviceId);
@@ -47,6 +61,9 @@ public final class RequestBuilder {
             o.put("trigger", trigger == null ? "initial" : trigger);
             o.put("app_version", appVer);
             o.put("location_permission", permissionString(permission));
+            if (actionId != null && !actionId.isEmpty()) {
+                o.put("action_id", actionId);
+            }
         } catch (JSONException e) {
             throw new RuntimeException(e);
         }

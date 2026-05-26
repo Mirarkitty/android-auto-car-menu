@@ -48,6 +48,16 @@ public class HttpFetcher {
 
     public void fetchScreen(Location location, RequestBuilder.Permission perm,
                             String trigger, Callback cb) {
+        fetchScreen(location, perm, trigger, null, cb);
+    }
+
+    /**
+     * @param actionId non-null for {@code trigger="action"} (carmenu:do?id=...
+     *                 tap dispatch). Carries the action id in the body so the
+     *                 server can branch on it.
+     */
+    public void fetchScreen(Location location, RequestBuilder.Permission perm,
+                            String trigger, String actionId, Callback cb) {
         final String url = Prefs.getServerUrl(appCtx);
         final String deviceId = Prefs.getDeviceId(appCtx);
         final Double lat = location != null ? location.getLatitude() : null;
@@ -63,7 +73,7 @@ public class HttpFetcher {
                         "Open CarMenu on the phone and enter your server URL.");
             } else {
                 String body = RequestBuilder.build(deviceId, lat, lon, locTime, now,
-                        perm, trigger, appVer);
+                        perm, trigger, actionId, appVer);
                 r = doPost(url, body);
             }
             final ServerResponse out = r;

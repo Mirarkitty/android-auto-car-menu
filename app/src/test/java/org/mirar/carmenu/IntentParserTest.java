@@ -28,6 +28,38 @@ public class IntentParserTest {
                 IntentParser.classify("carmenu:future-action").kind);
     }
 
+    @Test public void carmenuDoActionId_extracted() {
+        IntentParser.Classification c =
+                IntentParser.classify("carmenu:do?id=garage-toggle");
+        assertEquals(IntentParser.Kind.INTERNAL_ACTION, c.kind);
+        assertEquals("garage-toggle", c.detail);
+    }
+
+    @Test public void carmenuDoUrlDecodes() {
+        // %20 → space, '+' → space
+        IntentParser.Classification c =
+                IntentParser.classify("carmenu:do?id=open+garage%20door");
+        assertEquals(IntentParser.Kind.INTERNAL_ACTION, c.kind);
+        assertEquals("open garage door", c.detail);
+    }
+
+    @Test public void carmenuDoMissingId_dropped() {
+        // carmenu:do without id= → no action to fire → no-op.
+        assertEquals(IntentParser.Kind.EMPTY,
+                IntentParser.classify("carmenu:do?foo=bar").kind);
+        assertEquals(IntentParser.Kind.EMPTY,
+                IntentParser.classify("carmenu:do?id=").kind);
+    }
+
+    @Test public void carmenuDoIgnoresOtherParams() {
+        // Multi-param query: client just pulls id; other keys are
+        // server-defined and not forwarded.
+        IntentParser.Classification c = IntentParser.classify(
+                "carmenu:do?id=garage-toggle&debug=1");
+        assertEquals(IntentParser.Kind.INTERNAL_ACTION, c.kind);
+        assertEquals("garage-toggle", c.detail);
+    }
+
     @Test public void geo_passthrough() {
         IntentParser.Classification c = IntentParser.classify("geo:52.52,13.40?q=52.52,13.40");
         assertEquals(IntentParser.Kind.PASSTHROUGH, c.kind);
