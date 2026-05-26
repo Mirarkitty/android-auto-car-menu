@@ -60,15 +60,20 @@ dhu:
 
 keygen:
 	@if [ -f $(KEYSTORE) ]; then echo "$(KEYSTORE) already exists — refusing to overwrite"; exit 1; fi
-	@read -sp "Keystore password: " STOREPW; echo; \
-	$(KEYTOOL) -genkeypair -v -keystore $(KEYSTORE) -alias $(KEY_ALIAS) \
-		-keyalg RSA -keysize 2048 -validity 10000 \
-		-storepass $$STOREPW -keypass $$STOREPW \
-		-dname "CN=CarMenu, O=Personal, L=Stockholm, C=SE"; \
-	cp keystore.properties.example keystore.properties; \
-	sed -i "s/storePassword=CHANGE_ME/storePassword=$$STOREPW/" keystore.properties; \
-	sed -i "s/keyPassword=CHANGE_ME/keyPassword=$$STOREPW/" keystore.properties; \
-	echo "Wrote $(KEYSTORE) + keystore.properties (gitignored)."
+	@# `read -s` (silent input — for hiding the password from echo) is bash-
+	@# only; pepper's /bin/sh is dash, which doesn't grok -s. Force bash here.
+	@bash -c ' \
+		read -sp "Keystore password: " STOREPW; echo; \
+		if [ -z "$$STOREPW" ]; then echo "empty password — aborting"; exit 1; fi; \
+		$(KEYTOOL) -genkeypair -v -keystore $(KEYSTORE) -alias $(KEY_ALIAS) \
+			-keyalg RSA -keysize 2048 -validity 10000 \
+			-storepass "$$STOREPW" -keypass "$$STOREPW" \
+			-dname "CN=CarMenu, O=Personal, L=Stockholm, C=SE" && \
+		cp keystore.properties.example keystore.properties && \
+		sed -i "s|storePassword=CHANGE_ME|storePassword=$$STOREPW|" keystore.properties && \
+		sed -i "s|keyPassword=CHANGE_ME|keyPassword=$$STOREPW|" keystore.properties && \
+		echo "Wrote $(KEYSTORE) + keystore.properties (gitignored)." \
+	'
 
 keyfingerprint:
 	@$(KEYTOOL) -list -v -keystore $(KEYSTORE) -alias $(KEY_ALIAS) 2>/dev/null \
