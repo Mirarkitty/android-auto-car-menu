@@ -1,4 +1,4 @@
-package com.mirar.carmenu;
+package org.mirar.carmenu;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;

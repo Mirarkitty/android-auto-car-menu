@@ -35,11 +35,11 @@ val keystoreProps = Properties().apply {
 val hasKeystore = keystorePropsFile.exists()
 
 android {
-    namespace = "com.mirar.carmenu"
+    namespace = "org.mirar.carmenu"
     compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.mirar.carmenu"
+        applicationId = "org.mirar.carmenu"
         minSdk = 24             // androidx.car.app requires API 24+
         // Play requires targetSdk ≥ 35 for new apps & updates from Aug 2025
         // (current 2026 floor). Targeting 36 since the local SDK has it.

@@ -1,4 +1,4 @@
-package com.mirar.carmenu;
+package org.mirar.carmenu;
 
 import android.content.Context;
 import android.location.Location;

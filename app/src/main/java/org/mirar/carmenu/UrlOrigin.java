@@ -1,4 +1,4 @@
-package com.mirar.carmenu;
+package org.mirar.carmenu;
 
 import java.net.MalformedURLException;
 import java.net.URL;

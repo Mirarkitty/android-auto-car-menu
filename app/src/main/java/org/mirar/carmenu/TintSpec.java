@@ -1,4 +1,4 @@
-package com.mirar.carmenu;
+package org.mirar.carmenu;
 
 /**
  * Server-supplied color tint for an icon. Two forms:

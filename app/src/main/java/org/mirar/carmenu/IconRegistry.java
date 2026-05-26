@@ -1,4 +1,4 @@
-package com.mirar.carmenu;
+package org.mirar.carmenu;
 
 import java.util.HashMap;
 import java.util.Map;

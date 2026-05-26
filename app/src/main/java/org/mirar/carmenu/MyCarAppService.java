@@ -1,4 +1,4 @@
-package com.mirar.carmenu;
+package org.mirar.carmenu;
 
 import androidx.annotation.NonNull;
 import androidx.car.app.CarAppService;

@@ -35,7 +35,7 @@ Available under the
 
 Public-domain JSON parser bundled with the Android platform.
 
-The CarMenu source code itself (the `com.mirar.carmenu` Java package,
+The CarMenu source code itself (the `org.mirar.carmenu` Java package,
 the `res/drawable/ic_*.xml` icon vectors, the launcher compass-rose
 icon, the bundled `protocol.txt`, the reference server in
 `server-example/`) is licensed under the project's [MIT

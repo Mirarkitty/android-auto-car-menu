@@ -30,7 +30,7 @@ ADB=${ADB:-$(command -v adb || echo adb)}
 phone_shots() {
     echo "== phone settings screenshots =="
     # Make sure CarMenu is in foreground.
-    "$ADB" shell am start -n com.mirar.carmenu/.MainActivity >/dev/null
+    "$ADB" shell am start -n org.mirar.carmenu/.MainActivity >/dev/null
     sleep 1
     "$ADB" exec-out screencap -p > "$OUT/phone-01-settings.png"
     echo "wrote $OUT/phone-01-settings.png"
